@@ -51,3 +51,173 @@ hc, fc, obs = fn.preprocess_forecast(
     obs_var="precip",
     verbose=True
 )
+```
+
+---
+
+## Inputs
+
+### Forecast & Hindcast
+
+- NetCDF format  
+- Dimensions:
+  ```
+  time, lat, lon, member
+  ```
+
+- Hindcasts may include:
+  - **staggered members** (different initialization times per member)
+  - **continuous members** (single initialization)
+
+---
+
+### Observations
+
+- NetCDF format  
+- Dimensions:
+  ```
+  time, lat, lon
+  ```
+
+---
+
+## Output Structure
+
+### Hindcast & Forecast
+
+```
+lead_time, init_date, member, lat, lon
+```
+
+### Observations
+
+```
+lead_time, init_date, lat, lon
+```
+
+---
+
+## Core Concepts
+
+### Lead-Time Representation
+
+All datasets are transformed into a structure where:
+
+- `lead_time = 0` → first day after initialization  
+- `init_date` → initialization date of the forecast/hindcast  
+
+This allows consistent analysis across lead times, such as:
+
+- weekly means (week 1, week 2, …)  
+- skill vs lead time  
+- aggregated forecast periods  
+
+---
+
+### Staggered Hindcasts
+
+The pipeline automatically handles hindcasts where:
+
+- different ensemble members start on different dates  
+- missing values (NaNs) mark inactive periods  
+
+Cycle starts are detected using **member-specific NaN transitions**, ensuring correct reconstruction of forecast cycles.
+
+---
+
+### Temporal Aggregation
+
+User-defined aggregation is applied after reshaping:
+
+- `agg_window = 1` → daily  
+- `agg_window = 5` → pentads  
+- `agg_window = 7` → weekly  
+
+Supported methods:
+
+- `"mean"`
+- `"sum"`
+
+---
+
+## Configuration
+
+Optional keyword arguments can be passed to internal steps:
+
+```python
+fn.preprocess_forecast(
+    ...,
+    time_alignment_kwargs=dict(raise_if_missing=False),
+    grid_alignment_kwargs=dict(method="bilinear"),
+)
+```
+
+---
+
+## Logging
+
+Enable logging with:
+
+```python
+verbose=True
+```
+
+This provides:
+
+- step-by-step processing information  
+- clear function boundaries  
+- clean error messages  
+
+---
+
+## Notes
+
+- ECMWF precipitation (`tp`) is provided as **running accumulation** and is automatically converted to daily totals  
+- Spatial alignment ensures model data are restricted to locations where observations exist  
+- Temporal alignment maps observations onto hindcast time structure  
+- Designed primarily for **daily data**  
+
+---
+
+## Dependencies
+
+- xarray  
+- numpy  
+- pandas  
+- xesmf  
+- netCDF4  
+
+---
+
+## Project Structure
+
+```
+functions/
+    __init__.py
+    functions.py
+README.md
+```
+
+---
+
+## Future Improvements
+
+- Parallelization for large datasets  
+- Support for sub-daily data  
+- Built-in verification metrics  
+- CLI interface  
+
+---
+
+## Summary
+
+This pipeline solves a non-trivial problem in S2S workflows:
+
+> transforming heterogeneous forecast, hindcast, and observational data  
+> into a consistent, lead-time-based structure suitable for analysis
+
+with particular care for:
+
+- staggered hindcasts  
+- missing data handling  
+- reproducible preprocessing  
