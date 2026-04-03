@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toolkit-extension"
+version = "0.1.0"
+description = "Just testing process of publishing pypi package"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+dependencies = [
+     "xarray",
+     "matplotlib",
+     "numpy",
+     "pandas",
+     "xesmf",
+     "pooch"
+]
+
+[project.urls]
+Homepage = "https://github.com/piotr-whynot/toolkit-extension"

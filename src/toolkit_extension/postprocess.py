@@ -5,7 +5,7 @@ import pandas as pd
 import datetime
 import os,sys,glob
 import xesmf as xe
-
+import pooch
 
 #######################################################################################
 
@@ -13,6 +13,10 @@ import xesmf as xe
 # helper functions
 #
 #######################################################################################
+
+#this determines with functions will be publicly visible in the installed package
+__all__=["preprocess_forecast","set_verbose","get_example_data"]
+
 
 VERBOSE = True
 
@@ -22,11 +26,11 @@ def set_verbose(v):
     print("logging is {}".format(v))
 
 
-def log(msg, force=False):
+def __log(msg, force=False):
     if VERBOSE | force:
         print(msg)
         
-def check_grid_overlap(obs, hindcast, raise_if_missing=True, threshold=0.9):
+def _check_grid_overlap(obs, hindcast, raise_if_missing=True, threshold=0.9):
     """
     Check spatial overlap between two lat/lon grids.
 
@@ -82,14 +86,14 @@ def check_grid_overlap(obs, hindcast, raise_if_missing=True, threshold=0.9):
                 "f(threshold {threshold:.0%})"
             )
         else:
-            log("Grid overlap : {} ".format(np.round(overlap_fraction,2)))
+            _log("Grid overlap : {} ".format(np.round(overlap_fraction,2)))
             return True
     else:
         return True
 
 
 
-def harmonize_coords(ds):
+def _harmonize_coords(ds):
     """
     Harmonize coordinate names to standard names: lat, lon, time.
 
@@ -128,9 +132,9 @@ def harmonize_coords(ds):
             coord_map[name] = "time"
 
     if len(coord_map)>0:
-        log("Renaming coordinates: {}".format(coord_map))
+        _log("Renaming coordinates: {}".format(coord_map))
     else:
-        log("Nothing to do")
+        _log("Nothing to do")
         
     ds = ds.rename(coord_map)
 
@@ -185,12 +189,13 @@ def read_netcdf(file, variable):
         If the dataset does not appear to contain daily data.
     """
     
-    log("\n" + "="*60)
-    log(" START: read_netcdf ".center(60, "="))
-    log("="*60 + "\n")
+    _log("\n" + "="*60)
+    _log(" START: read_netcdf ".center(60, "="))
+    _log("="*60 + "\n")
     
-    log("reading {} from {}".format(variable,file))
+    _log("reading {} from {}".format(variable,file))
     
+            
     # Check file existence (for simple paths; glob patterns handled by xarray)
     if isinstance(file, str) and not any(c in file for c in "*?[]"):
         if not os.path.exists(file):
@@ -198,20 +203,20 @@ def read_netcdf(file, variable):
 
     try:
         ds = xr.open_dataset(file)
-        log("success")
+        _log("success")
     except Exception as e:
         raise OSError("Unable to open dataset: {}".format(file)) from e
 
-    log("looking for {}".format(variable))
+    _log("looking for {}".format(variable))
     
     if variable not in ds:
         raise KeyError("Variable '{}' not found in dataset.".format(variable))
     else:
-        log("found")
+        _log("found")
         
     # Make sure lat,lon and time are there, rename if necessary
-    log("Harmonizing coordinates...")
-    ds = harmonize_coords(ds)
+    _log("Harmonizing coordinates...")
+    ds = _harmonize_coords(ds)
 
     #and we return a data array rather than a dataset
     da = ds[variable]
@@ -219,7 +224,7 @@ def read_netcdf(file, variable):
     
     
     # just an idiot-check
-    log("check if data are daily...")    
+    _log("check if data are daily...")    
     if da.time.size > 2:
         dt = pd.Series(da.time.values).diff().dropna()
 
@@ -230,14 +235,14 @@ def read_netcdf(file, variable):
             raise ValueError(
                 "Dataset appears to be sub-daily (median timestep < 1 day)."
             )        
-        log("daily with data time range: {} to {}".format(str(da.time.values[0]),str(da.time.values[-1])))
+        _log("daily with data time range: {} to {}".format(str(da.time.values[0]),str(da.time.values[-1])))
     else:
         raise ValueError(
                 "Dataset appears to only one time step. This is not what is expected."
             )
         
-    log("all done")
-    log("\n" + "="*60+"\n")
+    _log("all done")
+    _log("\n" + "="*60+"\n")
     
     return da
 
@@ -268,23 +273,23 @@ def accumulated_to_daily(accum):
         Daily totals with timestamps representing the day of accumulation.
     """
 
-    log("\n" + "="*60)
-    log(" START: accumulated_to_daily ".center(60, "="))
-    log("="*60 + "\n")
+    _log("\n" + "="*60)
+    _log(" START: accumulated_to_daily ".center(60, "="))
+    _log("="*60 + "\n")
 
     # Select midnight values (00:00) in case data are sub=daily, would it work for staggered initializations?
-    log("Selecting midnight accumulation values...")
+    _log("Selecting midnight accumulation values...")
     
     midnight = accum.sel(time=accum.time.dt.hour == 0)
     
     # Calculate day-to-day differences
-    log("Computing day-to-day differences...")
+    _log("Computing day-to-day differences...")
     # we use this instead of diff(). With diff() if data has N time steps, there is only N-1 time steps after diff().
     # to go back do N - we would need to concatenate the first time step to the output
     # this one just leaves the original date in, and fills it with NaN, so there is still N time steps in the array
     daily = midnight - midnight.shift(time=1)
     
-    log("Detecting cycle starts...")
+    _log("Detecting cycle starts...")
     
     # this catches first days of each cycle. It's important if only one initialization time, i.e. a non-staggered hindcast. 
     # In daily data for staggered hindasts these days will be NaNs anyway.
@@ -299,19 +304,19 @@ def accumulated_to_daily(accum):
     #merging detected nans
     all_gaps = time_gap | nan_gap
     
-    log("Replacing missing differences...")
+    _log("Replacing missing differences...")
     #in staggered hindcast - first days of each cycle will be replaced by original accumulated value, other nans will be replaced by nans
     #in non staggered hindcasts - the first days of the cycle will be replaced by original accumulated value
     daily = daily.where(~all_gaps, midnight)
 
     # Shift timestamps back by one day - this is done so that a value for a particular date represents the total over that date. The time stamp
     # is kept to be at 00:00, but this is no longer the previous day accumulation.
-    log("Shifting timestamps to represent accumulation day...")
+    _log("Shifting timestamps to represent accumulation day...")
     daily["time"] = daily.indexes["time"] - pd.DateOffset(days=1)
 
     daily=daily.transpose("time","member","lat","lon")
-    log("all done")
-    log("\n" + "="*60+"\n")
+    _log("all done")
+    _log("\n" + "="*60+"\n")
 
     return daily
     
@@ -336,18 +341,18 @@ def align_grid(finegrid, coarsegrid, direction="fine_to_coarse", method="conserv
 
     Returns
     -------
-    fine_aligned : xarray.DataArray
+    finealigned : xarray.DataArray
         finegrid dataset aligned to the chosen spatial grid, dims (time, member, lat, lon)
-    coarse_aligned : xarray.DataArray
+    coarsealigned : xarray.DataArray
         coarsegrid dataset aligned to the chosen spatial grid, dims (time, member, lat, lon)
 
     Notes
     -----
     - NaN masking is applied along spatial dimensions only; all time steps and members are preserved.
     """
-    log("\n" + "="*60)
-    log(" START: align_spatial ".center(60, "="))
-    log("="*60 + "\n")
+    _log("\n" + "="*60)
+    _log(" START: align_spatial ".center(60, "="))
+    _log("="*60 + "\n")
 
 
     #while using xESMF, only these make sense. But perhaps it is worth thinking about switch to rioxarray regridded for 
@@ -364,7 +369,7 @@ def align_grid(finegrid, coarsegrid, direction="fine_to_coarse", method="conserv
         raise ValueError("Only {} methods available for {}".format(",".join(allowed[direction]),direction))
         
     #checking if grids overlap
-    overlap_check=check_grid_overlap(finegrid,coarsegrid,raise_if_missing, threshold)
+    overlap_check=_check_grid_overlap(finegrid,coarsegrid,raise_if_missing, threshold)
         
     # select one timestep for weight generation
     fine_step = finegrid.isel(time=0, drop=True)
@@ -376,30 +381,30 @@ def align_grid(finegrid, coarsegrid, direction="fine_to_coarse", method="conserv
 
     # Regrid
     if direction == "fine_to_coarse":
-        log("Regridding finegrid → coarsegrid (conservative)...")
+        _log("Regridding finegrid → coarsegrid (conservative)...")
         regridder = xe.Regridder(fine_step, coarse_step, "conservative")
-        fine_aligned = regridder(finegrid, skipna=True, na_thres=0.5)
-        coarse_aligned = coarsegrid
+        finealigned = regridder(finegrid, skipna=True, na_thres=0.5)
+        coarsealigned = coarsegrid
 
     elif direction == "coarse_to_fine":
-        log("Regridding coarsegrid → finegrid ({} )...".format(method))
+        _log("Regridding coarsegrid → finegrid ({} )...".format(method))
         regridder = xe.Regridder(coarse_step, fine_step, method, extrap_method="inverse_dist")
-        coarse_aligned = regridder(coarsegrid, skipna=True)
-        fine_aligned = finegrid
+        coarsealigned = regridder(coarsegrid, skipna=True)
+        finealigned = finegrid
 
     else:
         raise ValueError("direction must be 'fine_to_coarse' or 'coarse_to_fine'")
 
     # Apply spatial masks using the first timestep (time=0)
-    coarse_aligned = coarse_aligned.where(~np.isnan(fine_aligned.isel(time=0)))
-    fine_aligned = fine_aligned.where(~coarse_aligned.isnull().all(["time","member"]))
+    coarsealigned = coarsealigned.where(~np.isnan(finealigned.isel(time=0)))
+    finealigned = finealigned.where(~coarsealigned.isnull().all(["time","member"]))
 
 
-    log("done")
-    log("\n" + "="*60+"\n")
+    _log("done")
+    _log("\n" + "="*60+"\n")
 
 
-    return fine_aligned, coarse_aligned
+    return finealigned, coarsealigned
     
 
 
@@ -419,18 +424,18 @@ def align_time(obs, hindcast, raise_if_missing=True):
 
     Returns
     -------
-    obs_aligned : xarray.DataArray
+    obsaligned : xarray.DataArray
         Observations dataset aligned with hindcast. This includes replication of the ensemble members structure, which 
         is necessary if hindcast includes more than one initialization time
-    hindcast_aligned : xarray.DataArray
+    hindcastaligned : xarray.DataArray
         Hindcast dataset clipped to the extent of obs (if raise_if_missing is False).
     """
-    log("\n" + "="*60)
-    log(" START: align_time ".center(60, "="))
-    log("="*60 + "\n")
+    _log("\n" + "="*60)
+    _log(" START: align_time ".center(60, "="))
+    _log("="*60 + "\n")
 
     # Normalize time coordinates
-    log("Normalizing time coordinates...")
+    _log("Normalizing time coordinates...")
     obs = obs.copy()
     obs["time"] = obs.indexes["time"].normalize()
 
@@ -438,8 +443,8 @@ def align_time(obs, hindcast, raise_if_missing=True):
     hindcast["time"] = hindcast.indexes["time"].normalize()
 
     # Log ranges
-    log("Selecting obs time coordinates matching hindcast...")
-    log("obs: {} to {}\nhindcast: {} to {}".format(
+    _log("Selecting obs time coordinates matching hindcast...")
+    _log("obs: {} to {}\nhindcast: {} to {}".format(
         obs.time.dt.strftime("%Y-%m-%d")[0].data,
         obs.time.dt.strftime("%Y-%m-%d")[-1].data,
         hindcast.time.dt.strftime("%Y-%m-%d")[0].data,
@@ -448,8 +453,8 @@ def align_time(obs, hindcast, raise_if_missing=True):
 
     # Select timestamps in obs that match hindcast
     sel = obs.time.isin(hindcast.time)
-    obs_aligned = obs.sel(time=sel)
-    hindcast_aligned = hindcast.sel(time=obs_aligned.time)
+    obsaligned = obs.sel(time=sel)
+    hindcastaligned = hindcast.sel(time=obsaligned.time)
 
     # Check for coverage: all hindcast times should be in obs
     missing = np.invert(hindcast.time.isin(obs.time)).sum()
@@ -457,38 +462,38 @@ def align_time(obs, hindcast, raise_if_missing=True):
         if raise_if_missing:
             raise ValueError("obs does not cover the full hindcast period: missing {} days".format(missing))
         else:
-            log("WARNING: obs does not fully cover hindcast period")
-            log("obs: {} to {}\nhindcast: {} to {}".format(
+            _log("WARNING: obs does not fully cover hindcast period")
+            _log("obs: {} to {}\nhindcast: {} to {}".format(
                 obs.time.dt.strftime("%Y-%m-%d")[0].data,
                 obs.time.dt.strftime("%Y-%m-%d")[-1].data,
                 hindcast.time.dt.strftime("%Y-%m-%d")[0].data,
                 hindcast.time.dt.strftime("%Y-%m-%d")[-1].data
             ))
     else:
-        log("Time coverage verified: obs fully covers hindcast period.")
+        _log("Time coverage verified: obs fully covers hindcast period.")
     #construct pseudo-members in obs data corresponding to hindcast members
     pseudo_members=[]
-    for m in hindcast_aligned.member.values:
-        member_data = hindcast_aligned.sel(member=m)
+    for m in hindcastaligned.member.values:
+        member_data = hindcastaligned.sel(member=m)
 
         # valid timestep if any gridcell is non-nan
         valid = ~np.isnan(member_data).all(("lat", "lon"))    
         #select obs values for valid data
-        pseudo_member=obs_aligned.sel(time=valid)
+        pseudo_member=obsaligned.sel(time=valid)
         pseudo_member=pseudo_member.expand_dims(dim={"member":[m]})
         pseudo_members.append(pseudo_member)
 
-    obs_aligned = xr.concat(
+    obsaligned = xr.concat(
         pseudo_members,
         dim="member",
         join="outer"
     )
-    obs_aligned=obs_aligned.transpose("time","member","lat","lon")
+    obsaligned=obsaligned.transpose("time","member","lat","lon")
     
-    log("\n" + "="*60+"\n")
+    _log("\n" + "="*60+"\n")
 
 
-    return obs_aligned, hindcast_aligned
+    return obsaligned, hindcastaligned
 
 
     
@@ -501,16 +506,16 @@ def organize_by_leadtime(data, agg_window="1D", agg_method="sum", drop_members=F
     from transitions in the spatial NaN mask.
     """
 
-    log("\n" + "="*60)
-    log(" START: organize_by_leadtime ".center(60, "="))
-    log("="*60 + "\n")
+    _log("\n" + "="*60)
+    _log(" START: organize_by_leadtime ".center(60, "="))
+    _log("="*60 + "\n")
 
     data = data.sortby("time")
 
     if not "member" in data.dims:
         data=data.expand_dims(dim={"member":[0]})
         
-    log("finding initialization date for each member")
+    _log("finding initialization date for each member")
     #find initialization days
     isinit_time=(data.time.diff("time") > np.timedelta64(1, "D")).reindex(time=data.time, fill_value=True)
 
@@ -559,7 +564,7 @@ def organize_by_leadtime(data, agg_window="1D", agg_method="sum", drop_members=F
             blocks.append(block)
 
         members.append(xr.concat(blocks,dim="init_date",join="outer"))
-    log("Concatenating member blocks...")
+    _log("Concatenating member blocks...")
 
     reshaped = xr.concat(
         members,
@@ -582,7 +587,7 @@ def organize_by_leadtime(data, agg_window="1D", agg_method="sum", drop_members=F
             "agg_window must be one of {} got '{}'".format(" ".join(agg_windows),agg_window)
         )
         
-    log(f"Aggregating lead_time to {agg_window} blocks ({agg_method})...")
+    _log(f"Aggregating lead_time to {agg_window} blocks ({agg_method})...")
 
     #this is for removing last window if not full set of days
     window_days = pd.Timedelta(agg_window).days
@@ -615,7 +620,7 @@ def organize_by_leadtime(data, agg_window="1D", agg_method="sum", drop_members=F
     if drop_members:
         reshaped=reshaped.mean("member")
     
-    log("="*60 + "\n")
+    _log("="*60 + "\n")
 
     return reshaped
 
@@ -631,8 +636,8 @@ def preprocess_forecast(nominal_date,
                         obs_file,
                         obs_var,
                         verbose=False,
-                        time_alignment_kwargs=None,
-                        grid_alignment_kwargs=None
+                        timealignment_kwargs=None,
+                        gridalignment_kwargs=None
                        ):
     """
     End-to-end preprocessing pipeline for forecast, hindcast, and observations.
@@ -686,10 +691,10 @@ def preprocess_forecast(nominal_date,
     verbose : bool, default False
         If True, enables logging output during preprocessing.
 
-    time_alignment_kwargs : dict, optional
+    timealignment_kwargs : dict, optional
         Additional keyword arguments passed to `align_time()`.
 
-    grid_alignment_kwargs : dict, optional
+    gridalignment_kwargs : dict, optional
         Additional keyword arguments passed to `align_grid()`.
 
 
@@ -728,23 +733,23 @@ def preprocess_forecast(nominal_date,
 
     #setting up verbosity
     set_verbose(verbose)
-    log("logging is on")
+    _log("logging is on")
 
     
     #reading kwargs
-    grid_alignment_kwargs = grid_alignment_kwargs or {}
-    time_alignment_kwargs = time_alignment_kwargs or {}
+    gridalignment_kwargs = gridalignment_kwargs or {}
+    timealignment_kwargs = timealignment_kwargs or {}
 
 
     #feedback
-    log("nominal forecast date: {}".format(nominal_date), force=True)
-    log("download dir: {}".format(download_dir), force=True)
-    log("domain: {}".format(target_domain), force=True)
-    log("model: {}".format(fcst_model), force=True)
-    log("forecast variable: {}".format(fcst_var), force=True)
-    log("aggregation window: {}".format(agg_window), force=True)    
-    log("observed file: {}".format(obs_file), force=True)
-    log("observed variable: {}".format(obs_var), force=True)
+    _log("nominal forecast date: {}".format(nominal_date), force=True)
+    _log("download dir: {}".format(download_dir), force=True)
+    _log("domain: {}".format(target_domain), force=True)
+    _log("model: {}".format(fcst_model), force=True)
+    _log("forecast variable: {}".format(fcst_var), force=True)
+    _log("aggregation window: {}".format(agg_window), force=True)    
+    _log("observed file: {}".format(obs_file), force=True)
+    _log("observed variable: {}".format(obs_var), force=True)
 
     
     #*******
@@ -783,7 +788,8 @@ def preprocess_forecast(nominal_date,
     # reading observed data
     obs=read_netcdf(obs_file, obs_var)
     
-
+    print ("here")
+    
     if fcst_model=="ECMWF" and fcst_var in ["tp"]:
         #ECMWF provides running accumulation, and it needs to be converted to daily totals     
         #converting to daily
@@ -803,15 +809,15 @@ def preprocess_forecast(nominal_date,
     # here, observations are aggregated to crate data at the spatial resolution/grid of the forecast model
     # note that both hindcast and forecast have to be processed, because this function also masks out forecast 
     # and hindcast data so that they only cover the area for which observations are available.
-    obs_aligned,forecast_aligned=align_grid(obs, forecast, **grid_alignment_kwargs)
-    obs_aligned,hindcast_aligned=align_grid(obs, hindcast, **grid_alignment_kwargs)
+    obsaligned,forecastaligned=align_grid(obs, forecast, **gridalignment_kwargs)
+    obsaligned,hindcastaligned=align_grid(obs, hindcast, **gridalignment_kwargs)
     
         
     # aligning time of obs and hindcast
-    # this function duplicates the structure of hindcast data, i.e. the dimensions of obs_tslice are the same as those of hindcast_aligned
+    # this function duplicates the structure of hindcast data, i.e. the dimensions of obs_tslice are the same as those of hindcastaligned
     # i.e. time,member,lat,lon. This will neatly facilitate futher processing.
     # obviously, we cannot do this for forecast as we do not know observations yet
-    obs_tslice,hindcast_tslice=align_time(obs_aligned, hindcast_aligned, **time_alignment_kwargs)
+    obs_tslice,hindcast_tslice=align_time(obsaligned, hindcastaligned, **timealignment_kwargs)
     
     #restructurng into lead-time oriented structure
     # this funtion reshapes data into structure that will allow working with, say, 5-day or 7-day averages
@@ -823,13 +829,36 @@ def preprocess_forecast(nominal_date,
     # for obs - it is the date corresponding to hindcast init_date
 
     hindcast_leadtime_window_aggregate=organize_by_leadtime(hindcast_tslice, agg_window, agg_method)
-    forecast_leadtime_window_aggregate=organize_by_leadtime(forecast_aligned, agg_window, agg_method)
+    forecast_leadtime_window_aggregate=organize_by_leadtime(forecastaligned, agg_window, agg_method)
     #obs_tslice has member dimension, this dimension can now be dropped
     obs_leadtime_window_aggregate=organize_by_leadtime(obs_tslice, agg_window, agg_method,drop_members=True)
 
-    log("preprocessing done", force=True)
+    _log("preprocessing done", force=True)
     
     return hindcast_leadtime_window_aggregate,forecast_leadtime_window_aggregate,obs_leadtime_window_aggregate
 
     
 
+def get_example_data(data_dir):
+    
+    file_urls = {"obs":["https://web.csag.uct.ac.za/~wolski/acacia/toolkit/PRCPTOT_day_CHC_CHIRPS-2.0-0p25_merged.nc","9a3ac038915fbf9f956f11991f33356276a55351f1dd1f55f617eb2c814b5e1c"],
+    "hindcast":["https://web.csag.uct.ac.za/~wolski/acacia/toolkit/tp_ECMWF_20260301_madagascar_hc.nc","87f2cd4e064ff7a4d144b9ac265f001e97bdea619e38a613f0e68ff0661bb48b"],
+    "forecast":["https://web.csag.uct.ac.za/~wolski/acacia/toolkit/tp_ECMWF_20260301_madagascar_fc.nc","deeff561fa3ff0bea1e2874a74cf27f0c5aae90225e52e17b083df7e9262917a"],
+    "domain_geojson":["https://web.csag.uct.ac.za/~wolski/acacia/toolkit/madagascar.geojson","39ebb562fa1b4b93e972f3657005ab834c0604d465d71916055fe45d8c1e75d4"]}
+             
+    #create this directory if this does not exist
+    if not os.path.exists(data_dir):
+        try:
+            os.makedirs(data_dir)
+        except:
+            raise OSError(
+                "Cannot create directory {}".format(data_dir)
+                )
+    for data_type, [url,known_hash] in file_urls.items():
+        file_name="{}/{}".format(data_dir,os.path.basename(url))
+        if not os.path.exists(file_name):
+            print("downloading {} file".format(data_type))
+            file_name=pooch.retrieve(url=url, known_hash=known_hash, fname=os.path.basename(url), path=data_dir)
+        else:
+            print("file already exists locally {}".format(file_name))
+    return True
