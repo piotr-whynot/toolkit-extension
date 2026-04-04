@@ -15,7 +15,7 @@ import pooch
 #######################################################################################
 
 #this determines with functions will be publicly visible in the installed package
-__all__=["preprocess_forecast","set_verbose","get_example_data"]
+__all__=["preprocess_forecast","get_example_data"]
 
 
 VERBOSE = True
@@ -26,7 +26,7 @@ def set_verbose(v):
     print("logging is {}".format(v))
 
 
-def __log(msg, force=False):
+def _log(msg, force=False):
     if VERBOSE | force:
         print(msg)
         
@@ -635,9 +635,9 @@ def preprocess_forecast(nominal_date,
                         agg_method,
                         obs_file,
                         obs_var,
-                        verbose=False,
-                        timealignment_kwargs=None,
-                        gridalignment_kwargs=None
+                        verbose=True,
+                        time_alignment_kwargs=None,
+                        grid_alignment_kwargs=None
                        ):
     """
     End-to-end preprocessing pipeline for forecast, hindcast, and observations.
@@ -691,10 +691,10 @@ def preprocess_forecast(nominal_date,
     verbose : bool, default False
         If True, enables logging output during preprocessing.
 
-    timealignment_kwargs : dict, optional
+    time_alignment_kwargs : dict, optional
         Additional keyword arguments passed to `align_time()`.
 
-    gridalignment_kwargs : dict, optional
+    grid_alignment_kwargs : dict, optional
         Additional keyword arguments passed to `align_grid()`.
 
 
@@ -737,8 +737,8 @@ def preprocess_forecast(nominal_date,
 
     
     #reading kwargs
-    gridalignment_kwargs = gridalignment_kwargs or {}
-    timealignment_kwargs = timealignment_kwargs or {}
+    grid_alignment_kwargs = grid_alignment_kwargs or {}
+    time_alignment_kwargs = time_alignment_kwargs or {}
 
 
     #feedback
@@ -809,15 +809,15 @@ def preprocess_forecast(nominal_date,
     # here, observations are aggregated to crate data at the spatial resolution/grid of the forecast model
     # note that both hindcast and forecast have to be processed, because this function also masks out forecast 
     # and hindcast data so that they only cover the area for which observations are available.
-    obsaligned,forecastaligned=align_grid(obs, forecast, **gridalignment_kwargs)
-    obsaligned,hindcastaligned=align_grid(obs, hindcast, **gridalignment_kwargs)
+    obsaligned,forecastaligned=align_grid(obs, forecast, **grid_alignment_kwargs)
+    obsaligned,hindcastaligned=align_grid(obs, hindcast, **grid_alignment_kwargs)
     
         
     # aligning time of obs and hindcast
     # this function duplicates the structure of hindcast data, i.e. the dimensions of obs_tslice are the same as those of hindcastaligned
     # i.e. time,member,lat,lon. This will neatly facilitate futher processing.
     # obviously, we cannot do this for forecast as we do not know observations yet
-    obs_tslice,hindcast_tslice=align_time(obsaligned, hindcastaligned, **timealignment_kwargs)
+    obs_tslice,hindcast_tslice=align_time(obsaligned, hindcastaligned, **time_alignment_kwargs)
     
     #restructurng into lead-time oriented structure
     # this funtion reshapes data into structure that will allow working with, say, 5-day or 7-day averages
@@ -840,6 +840,32 @@ def preprocess_forecast(nominal_date,
     
 
 def get_example_data(data_dir):
+    """
+    Download example datasets for toolkit-extension.
+
+    Downloads observation, hindcast, forecast, and domain GeoJSON files
+    from remote storage to a local directory. Files are verified against
+    known checksums. Skips downloading files that already exist locally.
+
+    Args:
+        data_dir (str): Path to the local directory where files will be
+            saved. Created automatically if it does not exist.
+
+    Returns:
+        bool: True if all files are available locally.
+
+    Raises:
+        OSError: If the directory cannot be created.
+
+    Example:
+        >>> import toolkit_extension as te
+        >>> te.get_example_data("./data")
+        downloading obs file
+        downloading hindcast file
+        downloading forecast file
+        downloading domain_geojson file
+        True
+    """
     
     file_urls = {"obs":["https://web.csag.uct.ac.za/~wolski/acacia/toolkit/PRCPTOT_day_CHC_CHIRPS-2.0-0p25_merged.nc","9a3ac038915fbf9f956f11991f33356276a55351f1dd1f55f617eb2c814b5e1c"],
     "hindcast":["https://web.csag.uct.ac.za/~wolski/acacia/toolkit/tp_ECMWF_20260301_madagascar_hc.nc","87f2cd4e064ff7a4d144b9ac265f001e97bdea619e38a613f0e68ff0661bb48b"],
@@ -854,11 +880,30 @@ def get_example_data(data_dir):
             raise OSError(
                 "Cannot create directory {}".format(data_dir)
                 )
-    for data_type, [url,known_hash] in file_urls.items():
-        file_name="{}/{}".format(data_dir,os.path.basename(url))
+    for data_type, [url, known_hash] in file_urls.items():
+        file_name = "{}/{}".format(data_dir, os.path.basename(url))
         if not os.path.exists(file_name):
             print("downloading {} file".format(data_type))
-            file_name=pooch.retrieve(url=url, known_hash=known_hash, fname=os.path.basename(url), path=data_dir)
+            try:
+                file_name = pooch.retrieve(
+                    url=url,
+                    known_hash=known_hash,
+                    fname=os.path.basename(url),
+                    path=data_dir
+                )
+            except ValueError as e:
+                raise RuntimeError(
+                    "Failed to download {} file from {}.\n"
+                    "The file may no longer be available on the remote server.\n"
+                    "Original error: {}".format(data_type, url, e)
+                )
+            except OSError as e:
+                raise ConnectionError(
+                    "Failed to download {} file — no internet connection.\n"
+                    "Original error: {}".format(data_type, e)
+                )
+
+
         else:
             print("file already exists locally {}".format(file_name))
     return True

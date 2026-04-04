@@ -15,7 +15,9 @@ dependencies = [
      "numpy",
      "pandas",
      "xesmf",
-     "pooch"
+     "pooch",
+     "geopandas",
+     "cartopy"
 ]
 
 [project.urls]
