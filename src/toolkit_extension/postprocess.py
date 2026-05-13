@@ -8,11 +8,11 @@ import xesmf as xe
 import pooch
 
 
-#this is for readthedocs to work corectly. these packages cannot be installed by pip, so one has to mock import them
+#this is for readthedocs to work correctly. These packages cannot be installed by pip, so one has to mock import them
 autodoc_mock_imports = ["esmpy", "xesmf", "netCDF4"]
 
 #this determines with functions will be publicly visible in the installed package
-__all__=["preprocess_forecast","get_example_data"]
+__all__=["biascorrection_qqmapping", "biascorrection_meanvariance", "postprocess_forecast","get_example_data","load_raw_data"]
 
 
 #######################################################################################
@@ -630,9 +630,122 @@ def organize_by_leadtime(data, agg_window="1D", agg_method="sum", drop_members=F
 
     return reshaped
 
+def load_raw_data(nominal_date,
+                        download_dir,
+                        target_domain,
+                        fcst_model,
+                        fcst_var,
+                        obs_file,
+                        obs_var,
+                        verbose=True,
+                       ):
+    """
+    reading raw forecast, hindcast, and observations.
+
+    This function reads forecast, hindcast, and observation NetCDF files.
+
+    Parameters
+    ----------
+    nominal_date : str or datetime-like
+        Nominal initialization date of the forecast. Used to identify
+        the forecast and hindcast files and to align hindcasts with the
+        forecast cycle.
+
+    download_dir : str
+        Directory containing forecast and hindcast NetCDF files.
+
+    target_domain : str
+        Spatial domain identifier used in the input filenames.
+
+    fcst_model : str
+        Forecast model name (e.g., "ECMWF").
+
+    fcst_var : str
+        Forecast variable name in the NetCDF files.
+
+    Returns
+    -------
+    hindcast : xarray.DataArray 
+        Hindcast data in original structure with dimensions:
+
+        (lead_time, init_date, member, lat, lon)
+
+    forecast : xarray.DataArray
+        Forecast data in original structure.
+
+    obs : xarray.DataArray
+        Observations data in original structure
+
+        (date, lat, lon)
+
+    Notes
+    -----
+    * ECMWF precipitation (`tp`) is provided as running accumulation and
+      is automatically converted to daily totals.
+    
+    """
+
+    #setting up verbosity
+    set_verbose(verbose)
+    _log("logging is on")
 
     
-def preprocess_forecast(nominal_date,
+
+
+    #feedback
+    _log("nominal forecast date: {}".format(nominal_date), force=True)
+    _log("download dir: {}".format(download_dir), force=True)
+    _log("domain: {}".format(target_domain), force=True)
+    _log("model: {}".format(fcst_model), force=True)
+    _log("forecast variable: {}".format(fcst_var), force=True)
+    _log("observed file: {}".format(obs_file), force=True)
+    _log("observed variable: {}".format(obs_var), force=True)
+
+    
+    #*******
+    # setting things up
+    #*******
+    #this is also validation of nominaldate
+    try:
+        fcst_date=pd.to_datetime(nominal_date)
+    except:
+        raise TypeError("Forecast date does not appear to be valid")
+        
+    fcst_date_str=fcst_date.strftime("%Y%m%d")
+    fcst_day=fcst_date.day
+    fcst_mon=fcst_date.month
+    fcst_year=fcst_date.year
+    
+    # download function aligns hindcast date with forecast date, so
+    hcst_date=fcst_date
+
+    #*******
+    # processing
+    #*******
+    
+    # forecast data file
+    fcst_file="{}/{}_{}_{}_{}_fc.nc".format(download_dir,fcst_var,fcst_model, fcst_date_str, target_domain)
+    
+    # hindcast data file
+    hcst_file="{}/{}_{}_{}_{}_hc.nc".format(download_dir,fcst_var,fcst_model, fcst_date_str, target_domain)
+    
+    #reading forecast data
+    forecast=read_netcdf(fcst_file, fcst_var)
+    
+    #reading hindast
+    hindcast=read_netcdf(hcst_file, fcst_var)
+    
+    # reading observed data
+    obs=read_netcdf(obs_file, obs_var)
+
+    #returning arrays
+    return hindcast,forecast,obs
+    
+
+
+
+
+def postprocess_forecast(nominal_date,
                         download_dir,
                         target_domain,
                         fcst_model,
@@ -646,9 +759,9 @@ def preprocess_forecast(nominal_date,
                         grid_alignment_kwargs=None
                        ):
     """
-    End-to-end preprocessing pipeline for forecast, hindcast, and observations.
+    End-to-end postprocessing pipeline for forecast, hindcast, and observations.
 
-    This function performs all preprocessing steps required to prepare
+    This function performs all postprocessing steps required to prepare
     forecast, hindcast, and observational datasets for verification or
     downstream analysis. The workflow includes:
 
@@ -695,7 +808,7 @@ def preprocess_forecast(nominal_date,
         Variable name in the observation file.
 
     verbose : bool, default False
-        If True, enables logging output during preprocessing.
+        If True, enables logging output during postprocessing.
 
     time_alignment_kwargs : dict, optional
         Additional keyword arguments passed to `align_time()`.
@@ -794,8 +907,6 @@ def preprocess_forecast(nominal_date,
     # reading observed data
     obs=read_netcdf(obs_file, obs_var)
     
-    print ("here")
-    
     if fcst_model=="ECMWF" and fcst_var in ["tp"]:
         #ECMWF provides running accumulation, and it needs to be converted to daily totals     
         #converting to daily
@@ -839,7 +950,7 @@ def preprocess_forecast(nominal_date,
     #obs_tslice has member dimension, this dimension can now be dropped
     obs_leadtime_window_aggregate=organize_by_leadtime(obs_tslice, agg_window, agg_method,drop_members=True)
 
-    _log("preprocessing done", force=True)
+    _log("postprocessing done", force=True)
     
     return hindcast_leadtime_window_aggregate,forecast_leadtime_window_aggregate,obs_leadtime_window_aggregate
 
@@ -913,3 +1024,200 @@ def get_example_data(data_dir):
         else:
             print("file already exists locally {}".format(file_name))
     return True
+
+
+def biascorrection_meanvariance(forecast,hindcast,observed):
+    """
+    Apply mean and variance bias correction to forecast and hindcast data.
+
+    For each lead time, adjusts the mean and variance of the hindcast and
+    forecast to match those of the observed data. The correction is computed
+    from the hindcast/observation pair and then applied to both hindcast and
+    forecast.
+
+    Parameters
+    ----------
+    forecast : xarray.DataArray
+        Forecast data with dimensions (lead_time, member, ...).
+    hindcast : xarray.DataArray
+        Hindcast data with dimensions (lead_time, member, init_date, ...).
+    observed : xarray.DataArray
+        Observed data with dimensions (lead_time, init_date, ...).
+
+    Returns
+    -------
+    forecast_adjusted : xarray.DataArray
+        Bias-corrected forecast, same shape as input forecast.
+    hindcast_adjusted : xarray.DataArray
+        Bias-corrected hindcast, same shape as input hindcast.
+
+    Notes
+    -----
+    The correction follows:
+        adjusted = ((x - mean(x)) * sqrt(var(obs) / var(hindcast))) + mean(obs)
+
+    Hindcast variance is computed over both member and init_date dimensions.
+    Grid points where hindcast variance is zero are masked (set to NaN) to
+    avoid division by zero.
+    """
+    
+    #copy of original arrays to store results into
+    hindcast_adjusted=hindcast.copy()
+    forecast_adjusted=forecast.copy()
+
+    #iterating through lead times
+    for lead_time in hindcast.lead_time:
+
+        #selecting lead time
+        hc=hindcast.sel(lead_time=lead_time)
+        fc=forecast.sel(lead_time=lead_time)
+        ob=observed.sel(lead_time=lead_time)
+
+        #calculating variance, or actually standard deviation
+        hcsd=hc.var(["member","init_date"])**2
+        
+        #making sure no zeros
+        hcsd = hcsd.where(hcsd != 0)
+
+        #calculating variance adjustment
+        variance_correction=(ob.var(["init_date"])**2)/hcsd
+        
+        #adjusting hindcast    
+        hcadj=((hc-hc.mean(["member","init_date"]))*variance_correction)+ob.mean(["init_date"])
+
+        #inserting adjusted data into the output array 
+        hindcast_adjusted.loc[dict(lead_time=lead_time)]=hcadj.data
+
+        #adjusting forecast
+        fcadj=((fc-fc.mean(["member","init_date"]))*variance_correction)+ob.mean(["init_date"])
+        
+        forecast_adjusted.loc[dict(lead_time=lead_time)]=fcadj.data
+    
+    return forecast_adjusted, hindcast_adjusted
+
+
+
+
+def qm_core(hc_1d, ob_1d, x_1d):
+    # remove NaNs
+    hc_1d = hc_1d[~np.isnan(hc_1d)]
+    ob_1d = ob_1d[~np.isnan(ob_1d)]
+    
+    if len(hc_1d) == 0 or len(ob_1d) == 0:
+        return np.full_like(x_1d, np.nan)
+
+    hc_sorted = np.sort(hc_1d)
+    ob_sorted = np.sort(ob_1d)
+    
+    q_hc = np.linspace(0, 1, len(hc_sorted))
+    q_ob = np.linspace(0, 1, len(ob_sorted))
+    
+    p = np.interp(x_1d, hc_sorted, q_hc)
+    return np.interp(p, q_ob, ob_sorted)
+
+
+def biascorrection_qqmapping(forecast,hindcast,observed):
+    """
+    Apply quantile-quantile mapping bias correction to forecast and hindcast data.
+
+    For each lead time, maps the distribution of the hindcast and forecast
+    to match the observed distribution using quantile mapping. The transfer
+    function is derived from the hindcast/observation pair and applied to
+    both hindcast and forecast.
+
+    Parameters
+    ----------
+    forecast : xarray.DataArray
+        Forecast data with dimensions (lead_time, lat, lon, init_date, member).
+    hindcast : xarray.DataArray
+        Hindcast data with dimensions (lead_time, lat, lon, init_date, member).
+    observed : xarray.DataArray
+        Observed data with dimensions (lead_time, lat, lon, init_date).
+
+    Returns
+    -------
+    forecast_adjusted : xarray.DataArray
+        Bias-corrected forecast, same shape as input forecast.
+    hindcast_adjusted : xarray.DataArray
+        Bias-corrected hindcast, same shape as input hindcast.
+
+    Notes
+    -----
+    Member and init_date dimensions are stacked into a single sample dimension
+    before applying the quantile mapping, to maximise the sample size used
+    for estimating the transfer function.
+
+    The core quantile mapping is performed by `qm_core`, applied pointwise
+    over lat/lon using `xr.apply_ufunc` with dask parallelization support.
+
+    Both arrays are transposed to (lead_time, lat, lon, init_date, member)
+    internally before processing; the output preserves this dimension order.
+    """
+    
+    #copy of original arrays to store results into
+    hindcast_adjusted=hindcast.copy().transpose("lead_time", "lat", "lon", "init_date", "member")
+    forecast_adjusted=forecast.copy().transpose("lead_time", "lat", "lon", "init_date", "member")
+
+    #iterating through lead times
+    for lead_time in hindcast.lead_time:
+
+        hc=hindcast_adjusted.sel(lead_time=lead_time)
+        fc=forecast_adjusted.sel(lead_time=lead_time)
+        ob=observed.sel(lead_time=lead_time)
+        
+        #pooling across all init_dates
+        hc_sample = (
+            hc.stack(sample_hc=("member", "init_date"))
+            .reset_index("sample_hc", drop=True)
+        )
+        
+        #pooling across all init_dates
+        fc_sample = (
+            fc.stack(sample_fc=("member", "init_date"))
+            .reset_index("sample_fc", drop=True)
+        )
+        
+        #pooling across all init_dates
+        ob_sample = (
+            ob.stack(sample_ob=("init_date",))
+            .reset_index("sample_ob", drop=True)
+        )
+
+        # adjusting hindcast
+        hcadj=xr.apply_ufunc(
+            qm_core,
+            hc_sample,
+            ob_sample,
+            hc_sample,
+            input_core_dims=[["sample_hc"], ["sample_ob"], ["sample_hc"]],
+            output_core_dims=[["sample_hc"]],
+            vectorize=True,
+            dask="parallelized",
+            output_dtypes=[hc.dtype],
+            join="override",   
+        )
+
+        # adjusting forecast
+        fcadj=xr.apply_ufunc(
+            qm_core,
+            hc_sample,
+            ob_sample,
+            fc_sample,
+            input_core_dims=[["sample_hc"], ["sample_ob"], ["sample_fc"]],
+            output_core_dims=[["sample_fc"]],
+            vectorize=True,
+            dask="parallelized",
+            output_dtypes=[hc.dtype],
+            join="override", 
+        )
+
+        #reshaping into the original sequence of dimensions
+        hcadj = hcadj.data.reshape(hc.shape)
+        fcadj = fcadj.data.reshape(fc.shape)
+
+        #injecting adjusted data into
+        hindcast_adjusted.loc[dict(lead_time=lead_time)]=hcadj.data
+        forecast_adjusted.loc[dict(lead_time=lead_time)]=fcadj.data
+    
+    return forecast_adjusted, hindcast_adjusted
+

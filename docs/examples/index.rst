@@ -4,4 +4,5 @@ Examples
 .. toctree::
    :maxdepth: 1
 
-   basic_example
+   bias_correction_example
+   postprocessing_basic_example

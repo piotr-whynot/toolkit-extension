@@ -1,5 +1,7 @@
 dev
 process_s2s_dev.ipynb
+docs/examples/data
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
