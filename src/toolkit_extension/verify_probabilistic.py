@@ -1,62 +1,65 @@
-#"""
-#Verification of an issued probabilistic (category) forecast against the observations that
-#have since become available, following the WMO guidance on verifying operational seasonal
-#forecasts (WMO-No. 1220).
-#
-#    product = xr.open_dataset("prob.nc")             # from make_probabilistic_product
-#    skill = verify_probabilistic(product, obs)
-#    skill = verify_probabilistic(product, obs, ["heidke_hits", "heidke"])
-#
-#Inputs, alignment rules, area weighting: see verification_common.py.
-#The obs are categorised with the thresholds stored in the product, exactly as in the
-#hindcast; the reference forecast is the stored clim_prob (quantile spacing, or the observed
-#frequency for absolute thresholds).
-#
-#Units: obs in the units of the variable; obs_percentile, interest_rate and
-#effective_interest_rate in %; ignorance in bits; probabilities as fractions (0-1); all other
-#scores dimensionless (units '-'). Every output variable carries 'units'.
-#
-#Maps (valid_time, lead, latitude, longitude)
-#    obs             the observations of the forecast period, as verified against
-#    obs_percentile  the observation as a percentile (0-100) of the hindcast-period obs
-#                    stored in the product, at that grid point and lead time (hindcast values
-#                    equal to the obs count half)
-#    obs_category    index of the observed category
-#    prob_observed   probability the forecast gave to the observed category
-#    heidke_hits     1 if the most probable category was observed, 0 if not; with ties
-#                    1/n for each of the n tied categories (e.g. 0.5 for two)
-#    ignorance       -log2(probability of the observed category), in bits; lower is better
-#                    (climatology for terciles: log2(3) = 1.58)
-#    interest_rate   100 * (p_obs / clim_obs - 1), in %: the return on a bet placed on the
-#                    forecast probabilities against odds set by climatology (0 = no gain,
-#                    100 = money doubled, -100 = all lost)
-#    rps             fair ranked probability score (lower is better)
-#
-#Scores over the map (valid_time, lead[, category])
-#    heidke          Heidke skill score of the most probable category: (H - E) / (1 - E),
-#                    H = area fraction of hits (heidke_hits), E = hits expected by chance =
-#                    climatological probability of the forecast category (1/3 for terciles);
-#                    0 = chance, 1 = perfect, negative = worse than chance
-#    mean_ignorance  area mean of ignorance
-#    effective_interest_rate
-#                    the average return over the map (geometric mean, as compounded
-#                    interest), in % = 100 * (2^(mean ignorance of climatology - mean
-#                    ignorance) - 1)
-#    rpss            1 - mean(RPS) / mean(RPS of climatology)
-#    bss             per category: 1 - mean(BS) / mean(BS of climatology) of the event
-#                    "obs in this category" (fair Brier score)
-#With two categories, rpss equals bss of either category.
-#
-#Ignorance and interest rate are infinite / -100% where the forecast gave 0 probability to
-#what happened, which ensemble fractions often do (e.g. no member above the threshold). For
-#these two scores the forecast probabilities are therefore those of the ensemble plus one
-#member drawn from climatology: (M * p + clim_prob) / (M + 1), M = number of members.
-#Where the observed category was never observed in the hindcast years (clim_prob 0, possible
-#with absolute thresholds) there is no climatological reference: ignorance and interest rate
-#are NaN there, and those grid points are left out of mean_ignorance and
-#effective_interest_rate. rpss and bss are NaN where their reference score is 0, heidke where
-#the chance of a hit is 1 (climatology certain of one category everywhere).
-#"""
+"""
+Verification of an issued probabilistic (category) forecast against the observations that
+have since become available, following the WMO guidance on verifying operational seasonal
+forecasts (WMO-No. 1220)::
+
+    product = xr.open_dataset("prob.nc")             # from make_probabilistic_product
+    skill = verify_probabilistic(product, obs)
+    skill = verify_probabilistic(product, obs, ["heidke_hits", "heidke"])
+
+Inputs, alignment rules, area weighting: see verification_common.py.
+The obs are categorised with the thresholds stored in the product, exactly as in the
+hindcast; the reference forecast is the stored clim_prob (quantile spacing, or the observed
+frequency for absolute thresholds).
+
+Units: obs in the units of the variable; obs_percentile, interest_rate and
+effective_interest_rate in %; ignorance in bits; probabilities as fractions (0-1); all other
+scores dimensionless (units '-'). Every output variable carries 'units'.
+
+Maps (valid_time, lead, latitude, longitude)::
+
+    obs             the observations of the forecast period, as verified against
+    obs_percentile  the observation as a percentile (0-100) of the hindcast-period obs
+                    stored in the product, at that grid point and lead time (hindcast values
+                    equal to the obs count half)
+    obs_category    index of the observed category
+    prob_observed   probability the forecast gave to the observed category
+    heidke_hits     1 if the most probable category was observed, 0 if not; with ties
+                    1/n for each of the n tied categories (e.g. 0.5 for two)
+    ignorance       -log2(probability of the observed category), in bits; lower is better
+                    (climatology for terciles: log2(3) = 1.58)
+    interest_rate   100 * (p_obs / clim_obs - 1), in %: the return on a bet placed on the
+                    forecast probabilities against odds set by climatology (0 = no gain,
+                    100 = money doubled, -100 = all lost)
+    rps             fair ranked probability score (lower is better)
+
+Scores over the map (valid_time, lead[, category])::
+
+    heidke          Heidke skill score of the most probable category: (H - E) / (1 - E),
+                    H = area fraction of hits (heidke_hits), E = hits expected by chance =
+                    climatological probability of the forecast category (1/3 for terciles);
+                    0 = chance, 1 = perfect, negative = worse than chance
+    mean_ignorance  area mean of ignorance
+    effective_interest_rate
+                    the average return over the map (geometric mean, as compounded
+                    interest), in % = 100 * (2^(mean ignorance of climatology - mean
+                    ignorance) - 1)
+    rpss            1 - mean(RPS) / mean(RPS of climatology)
+    bss             per category: 1 - mean(BS) / mean(BS of climatology) of the event
+                    "obs in this category" (fair Brier score)
+
+With two categories, rpss equals bss of either category.
+
+Ignorance and interest rate are infinite / -100% where the forecast gave 0 probability to
+what happened, which ensemble fractions often do (e.g. no member above the threshold). For
+these two scores the forecast probabilities are therefore those of the ensemble plus one
+member drawn from climatology: (M * p + clim_prob) / (M + 1), M = number of members.
+Where the observed category was never observed in the hindcast years (clim_prob 0, possible
+with absolute thresholds) there is no climatological reference: ignorance and interest rate
+are NaN there, and those grid points are left out of mean_ignorance and
+effective_interest_rate. rpss and bss are NaN where their reference score is 0, heidke where
+the chance of a hit is 1 (climatology certain of one category everywhere).
+"""
 
 from __future__ import annotations
 
@@ -101,12 +104,20 @@ def verify_probabilistic(product, obs, scores=None):
     """
     Skill of the probabilistic forecast in `product` (see module docstring).
 
-    product : Dataset from make_probabilistic_product (or the saved file)
-    obs     : (valid_time, lead, latitude, longitude), aligned with the forecast, e.g. by
-              postprocess.align_obs_to_product; extra trailing lead times are dropped
-    scores  : names from PROBABILISTIC_SCORES; None = all
+    Parameters
+    ----------
+    product : xarray.Dataset
+        Product from make_probabilistic_product (or the saved file).
+    obs : xarray.DataArray
+        (valid_time, lead, latitude, longitude), aligned with the forecast, e.g. by
+        postprocess.align_obs_to_product; extra trailing lead times are dropped.
+    scores : list of str, optional
+        Names from PROBABILISTIC_SCORES; None (default) = all.
 
-    Returns a Dataset with one variable per score.
+    Returns
+    -------
+    xarray.Dataset
+        One variable per score.
     """
     check_product(product, "probabilistic")
     names = select_scores(scores, PROBABILISTIC_SCORES)

@@ -1,6 +1,8 @@
 """
 Forecast products plus the hindcast skill of the same products, one file per forecast.
 
+::
+
     prob = make_probabilistic_product(obs, hcst, fcst, quantiles=[1/3, 2/3], path="prob.nc")
     rain = make_probabilistic_product(obs, hcst, fcst, thresholds=[1.0], path="rain.nc")
     det  = make_deterministic_product(obs, hcst, fcst, path="det.nc")
@@ -9,7 +11,8 @@ Dimensions: valid_time, effective_lead_time ('lead' below), member, latitude and
 ('lat', 'lon' below).
 
 Inputs (all prepared the same way: restructured, aligned, regridded, aggregated,
-bias-corrected; the hindcast cross-validated):
+bias-corrected; the hindcast cross-validated)::
+
     obs  : (valid_time, lead, lat, lon)            hindcast years
     hcst : (valid_time, lead, member, lat, lon)
     fcst : (valid_time, lead, member, lat, lon)    usually one valid_time; same leads and grid
@@ -19,8 +22,9 @@ Hindcast variables use the dimension 'hcst_valid_time' (the hindcast years), so 
 sit in the same file as the forecast ('valid_time'); otherwise xarray would merge the two
 time axes and fill the gaps with NaN.
 
-Probabilistic product
-    fcst_prob        (valid_time, lead, category, lat, lon)       forecast probabilities
+Probabilistic product::
+
+    fcst_prob       (valid_time, lead, category, lat, lon)       forecast probabilities
     fcst_n_members   (valid_time, lead, lat, lon)
     hcst_prob        (hcst_valid_time, lead, category, lat, lon)  hindcast probabilities
     hcst_n_members   (hcst_valid_time, lead, lat, lon)
@@ -32,8 +36,9 @@ Probabilistic product
                      (lead, category, lat, lon) for absolute thresholds: observed frequency
     skill_<score>    (lead, [category,] lat, lon)                 hindcast skill
 
-Deterministic product (ensemble mean)
-    fcst_mean        (valid_time, lead, lat, lon)
+Deterministic product (ensemble mean)::
+
+    fcst_mean       (valid_time, lead, lat, lon)
     fcst_anomaly     (valid_time, lead, lat, lon)       fcst_mean - climatology
     fcst_anomaly_pct (valid_time, lead, lat, lon)       100 * fcst_anomaly / climatology
     hcst_mean        (hcst_valid_time, lead, lat, lon)
@@ -43,9 +48,10 @@ Deterministic product (ensemble mean)
     clim_obs         (lead, lat, lon)                   to compute anomalies of future obs
     clim_model       (lead, lat, lon)                   only if clim_from="model"
     skill_<score>    (lead, lat, lon)                   hindcast skill (of the ensemble mean)
-    Percent anomalies are meant for positive variables such as precipitation; they are NaN
-    where the climatology is 0 or negative, and become very large where it is close to 0
-    (e.g. dry seasons), so mask or cap them for display.
+
+Percent anomalies are meant for positive variables such as precipitation; they are NaN
+where the climatology is 0 or negative, and become very large where it is close to 0
+(e.g. dry seasons), so mask or cap them for display.
 
 Both carry attributes: product, units, hindcast period, settings, your `attrs`, the
 regridding and aggregation settings carried by the obs (regrid_*, aggregation_*, written by
@@ -58,7 +64,8 @@ are in the units of the variable, percent anomalies in %, probabilities as fract
 skill scores as given by skill.hindcast_skill (rmse, bias, crps in the variable's units,
 the others dimensionless, units '-').
 
-Later, with the obs of the forecast period aligned with the forecast:
+Later, with the obs of the forecast period aligned with the forecast::
+
     verify_probabilistic(xr.open_dataset("prob.nc"), obs)     # verify_probabilistic.py
     verify_deterministic(xr.open_dataset("det.nc"), obs)      # verify_deterministic.py
 """
@@ -187,20 +194,38 @@ def make_probabilistic_product(obs, hcst, fcst, quantiles=None, *, thresholds=No
     Category probabilities of forecast and hindcast, and the hindcast skill of the hindcast
     probabilities.
 
-    quantiles  : category boundaries as climatological quantiles, e.g. [1/3, 2/3] (default)
-                 or [0.1, 0.9]
-    thresholds : category boundaries as absolute values instead, e.g. [1.0] (in data units)
-    edges_from : "obs" (bias-corrected data) or "model" (raw data); see categories.Categories
-    scores     : hindcast scores to store (names from skill.SKILL_SCORES); [] for none.
-                 Ensemble scores (crpss, groc) can be added too.
-    path       : if given, the product is also written to this netCDF file
-    attrs      : extra attributes to record, e.g. {"model": "ECMWF", "variable": "tp"}
-                 (regridding, aggregation and bias-correction settings are recorded
-                 automatically)
+    Parameters
+    ----------
+    obs, hcst, fcst : xarray.DataArray
+        Prepared inputs (see module docstring). They must have the same lead times and
+        grid, except that forecast lead times the hindcast lacks are dropped with a
+        message.
+    quantiles : list of float, optional
+        Category boundaries as climatological quantiles, e.g. [1/3, 2/3] (default) or
+        [0.1, 0.9].
+    thresholds : list of float, optional
+        Category boundaries as absolute values instead, e.g. [1.0] (in data units).
+    edges_from : {"obs", "model"}, default "obs"
+        "obs" (bias-corrected data) or "model" (raw data); see categories.Categories.
+    scores : list of str, default PROBABILISTIC_SCORES
+        Hindcast scores to store (names from skill.SKILL_SCORES); [] for none.
+        Ensemble scores (crpss, groc) can be added too.
+    path : str, optional
+        If given, the product is also written to this netCDF file.
+    attrs : dict, optional
+        Extra attributes to record, e.g. {"model": "ECMWF", "variable": "tp"}
+        (regridding, aggregation and bias-correction settings are recorded
+        automatically).
 
-    Returns the product Dataset (see module docstring). obs, hcst and fcst must have the
-    same lead times and grid (ValueError otherwise), except that forecast lead times the
-    hindcast lacks are dropped with a message.
+    Returns
+    -------
+    xarray.Dataset
+        The product (see module docstring).
+
+    Raises
+    ------
+    ValueError
+        If obs, hcst and fcst do not have the same lead times and grid.
     """
     obs = _drop_member_copies(obs)
     fcst = _align_inputs(obs, hcst, fcst)
@@ -229,16 +254,34 @@ def make_deterministic_product(obs, hcst, fcst, *, clim_from="obs",
     Ensemble means, anomalies and percent anomalies of forecast and hindcast, and the
     hindcast skill of the ensemble mean.
 
-    clim_from : climatology the anomalies are relative to:
-                "obs"   - mean of the observations over the hindcast years (bias-corrected data)
-                "model" - mean of the hindcast ensemble mean (raw data)
-                Future observations are always compared as obs - clim_obs.
-    scores    : hindcast scores to store (deterministic family of skill.SKILL_SCORES)
-    path, attrs : as for make_probabilistic_product
+    Parameters
+    ----------
+    obs, hcst, fcst : xarray.DataArray
+        Prepared inputs (see module docstring). They must have the same lead times and
+        grid, except that forecast lead times the hindcast lacks are dropped with a
+        message.
+    clim_from : {"obs", "model"}, default "obs"
+        Climatology the anomalies are relative to:
 
-    Returns the product Dataset (see module docstring). obs, hcst and fcst must have the
-    same lead times and grid (ValueError otherwise), except that forecast lead times the
-    hindcast lacks are dropped with a message.
+        - "obs": mean of the observations over the hindcast years (bias-corrected data)
+        - "model": mean of the hindcast ensemble mean (raw data)
+
+        Future observations are always compared as obs - clim_obs.
+    scores : list of str, default DETERMINISTIC_SCORES
+        Hindcast scores to store (deterministic family of skill.SKILL_SCORES).
+    path, attrs : optional
+        As for make_probabilistic_product.
+
+    Returns
+    -------
+    xarray.Dataset
+        The product (see module docstring).
+
+    Raises
+    ------
+    ValueError
+        If clim_from is not "obs" or "model", or if obs, hcst and fcst do not have the
+        same lead times and grid.
     """
     if clim_from not in ("obs", "model"):
         raise ValueError("clim_from must be 'obs' or 'model'")

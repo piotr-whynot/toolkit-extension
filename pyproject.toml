@@ -1,7 +1,7 @@
 [project]
 # Derive the version from Git tags and commits.
 dynamic = ["version"]
-name = "acacia_s2s_toolkit"
+name = "toolkit_extension"
 authors = [
   {name="Joshua Talib", email="joshuatalib@ecmwf.int" },
   {name="Innocent Masukwedza", email="g.t.masukwedza@reading.ac.uk"},
@@ -37,7 +37,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ecmwf/acacia-s2s-toolkit"
+Homepage = "https://github.com/piotr-whynot/toolkit_extension"
 
 # build system
 [build-system]
@@ -45,8 +45,8 @@ requires = ["setuptools>=64", "wheel", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-package-data = { "acacia_s2s_toolkit.lookup_tables" = ["*.csv"] }
+package-data = { "toolkit_extension.lookup_tables" = ["*.csv"] }
 
 [tool.setuptools_scm]
 # Generate the version file during installation or building.
-version_file = "src/acacia_s2s_toolkit/_version.py"
+version_file = "src/toolkit_extension/_version.py"
