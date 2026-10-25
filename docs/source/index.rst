@@ -69,8 +69,9 @@ Contents
    theory_bias_correction
    tips_faq
    
+.. toctree::
+   :maxdepth: 1
+   :caption: API
 
-   
-   
-   
-   
+   api
+
