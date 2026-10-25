@@ -1,0 +1,15 @@
+Model,Origin,Delay,fcFreq,fcLength,fcNumEns,dayfcLags,rfType,rfRange,rfModelFreq,rfModelDate,rfNumEns,rfLagType,rfLagDetail
+ECMWF,ecmf,48,"[1,2,3,4,5,6,7]",1104,100,0,dynamic,20,otf,0,10,unique,odddates
+ECCC,cwao,48,"[1,4]",936,20,0,fixed,"(2001,2020)",otf,0,3,weekday_based,ThMoTh
+HMCR,rums,48,"[4]",1104,40,0,fixed,"(1991,2020)",otf,0,10,daily_lagged,0
+JMA,rjtd,48,"[1,2,3,4,5,6,7]",816,4,"[0,-1,-2]",fixed,"(1991,2020)",fixed,20220930,4,unique,JMAtwicepermonth
+KMA,rksl,48,"[1,2,3,4,5,6,7]",1440,7,"[0,-1,-2]",fixed,"(1993,2016)",otf,0,6,before_after_DOM,"[1,9,17,25]"
+NCEP,kwbc,48,"[1,2,3,4,5,6,7]",1056,15,"[0,-1]",fixed,"(1999,2010)",fixed,20110301,3,daily_lagged,"[-4,-2,0,2,4]"
+BOM,ammc,168,"[4,7]",1488,32,0,fixed,"(1981,2013)",fixed,20140101,32,nearestDOM,"[1,6,11,16,21,26]"
+CMA,babj,48,"[1,4]",1440,3,0,dynamic,15,otf,0,3,weekday_based,ThMoTh
+CNR-ISAC,isac,48,"[4]",840,40,0,fixed,"(2001,2020)",fixed,20231016,7,unique,CNRevery5days
+CNRM,lfpw,168,"[4]",1128,24,0,fixed,"(1993,2017)",fixed,20190701,9,tbc,tbc
+CPTEC,sbsj,48,"[3,4]",840,10,0,fixed,"(1999,2018)",fixed,20230104,10,tbc,tbc
+IAP-CAS,anso,48,"[1,2,3,4,5,6,7]",1560,48,0,fixed,"(1999,2018)",fixed,20190101,3,daily_lagged,"[-4,-2,0,2,4]"
+UKMO,egrr,504,"[1,2,3,4,5,6,7]",1440,4,"[0,-1,-2]",fixed,"(1993,2016)",otf,0,6,before_after_DOM,"[1,9,17,25]"
+
