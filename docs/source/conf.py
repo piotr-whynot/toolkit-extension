@@ -10,6 +10,14 @@ import os
 import faulthandler
 faulthandler.enable()
 
+
+import os
+
+def _exit_cleanly(app, exception):
+    if exception is None:      # build succeeded: skip the crashing interpreter teardown
+        os._exit(0)
+
+
 # -- Project information
 
 project = 'ACACIA_S2S_TOOLKIT'
@@ -54,3 +62,7 @@ epub_show_urls = 'footnote'
 exclude_patterns = [
     'notebooks/*.ipynb',
 ]
+
+def setup(app):
+    app.connect("build-finished", _exit_cleanly)
+
