@@ -1,47 +1,47 @@
 API
 ===
 
-.. automodule:: acacia_s2s_toolkit
+.. automodule:: toolkit_extension
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: acacia_s2s_toolkit.download_forecast
+.. automodule:: toolkit_extension.download_forecast
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: acacia_s2s_toolkit.download_hindcast
+.. automodule:: toolkit_extension.download_hindcast
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: acacia_s2s_toolkit.download_S2Stc_tracks
+.. automodule:: toolkit_extension.download_S2Stc_tracks
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: acacia_s2s_toolkit.postprocess
+.. automodule:: toolkit_extension.postprocess
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: acacia_s2s_toolkit.bias_correction
+.. automodule:: toolkit_extension.bias_correction
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: acacia_s2s_toolkit.products
+.. automodule:: toolkit_extension.products
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: acacia_s2s_toolkit.verify_deterministic
+.. automodule:: toolkit_extension.verify_deterministic
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: acacia_s2s_toolkit.verify_probabilistic
+.. automodule:: toolkit_extension.verify_probabilistic
    :members:
    :undoc-members:
    :show-inheritance:
