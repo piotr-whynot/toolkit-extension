@@ -68,9 +68,9 @@ from __future__ import annotations
 import numpy as np
 import xarray as xr
 
-from postprocess import _log
-from categories import Categories, quiet_nan_warnings
-from skill import hindcast_skill
+from toolkit_extension.postprocess import _log
+from toolkit_extension.categories import Categories, quiet_nan_warnings
+from toolkit_extension.skill import hindcast_skill
 
 # hindcast scores stored by default; roc / bss come per category
 PROBABILISTIC_SCORES = ["rpss", "2afc", "roc", "bss", "heidke"]

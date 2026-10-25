@@ -20,7 +20,7 @@ from functools import partial
 import numpy as np
 import xarray as xr
 
-from xsdba_corrector import BiasCorrector, XsdbaCorrector, _make_lead_blocks
+from toolkit_extension.xsdba_corrector import BiasCorrector, XsdbaCorrector, _make_lead_blocks
 
 
 #this determines with functions will be publicly visible in the installed package

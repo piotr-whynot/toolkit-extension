@@ -49,8 +49,8 @@ from __future__ import annotations
 import numpy as np
 import xskillscore as xs
 
-from categories import quiet_nan_warnings
-from verification_common import (DATA_UNITS, SPACE, area_mean, area_weights, check_product, finish,
+from toolkit_extension.categories import quiet_nan_warnings
+from toolkit_extension.verification_common import (DATA_UNITS, SPACE, area_mean, area_weights, check_product, finish,
                                  obs_percentile, plain, hindcast_obs, prepare_obs,
                                  select_scores)
 

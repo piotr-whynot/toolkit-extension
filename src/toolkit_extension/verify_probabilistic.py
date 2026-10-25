@@ -63,8 +63,8 @@ from __future__ import annotations
 import numpy as np
 import xarray as xr
 
-from categories import Categories, quiet_nan_warnings
-from verification_common import (DATA_UNITS, area_mean, check_product, finish, obs_percentile, plain,
+from toolkit_extension.categories import Categories, quiet_nan_warnings
+from toolkit_extension.verification_common import (DATA_UNITS, area_mean, check_product, finish, obs_percentile, plain,
                                  hindcast_obs, prepare_obs, select_scores)
 
 # name: (long_name, units, description); long_name and units label plots
