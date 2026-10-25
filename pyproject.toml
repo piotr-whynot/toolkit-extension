@@ -32,7 +32,7 @@ dependencies = [
     "geopandas>=1.0.0",
     "cdsapi>=0.7.7",
     "xsdba>=0.7.0",
-    "xskillscore=0.0.29",
+    "xskillscore==0.0.29",
     "xarray-regrid<0.5.0",
 ]
 
