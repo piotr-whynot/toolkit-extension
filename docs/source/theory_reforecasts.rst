@@ -18,6 +18,7 @@ A set of reforecasts may span the twenty year period 2001-2020.  In the simplest
 .. image:: reforecasts.png
    :alt: How a reforecast works
    :align: center
+
 Image: how a reforecast generates an archive of past forecasts and matched observations for a certain calendar date.
 
 Types of Reforecast
