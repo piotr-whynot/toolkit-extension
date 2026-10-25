@@ -8,8 +8,8 @@ import json
 import os
 from contextlib import contextmanager
 
-import toolkit_extension.xarray_regrid  # noqa: F401  (registers the .regrid accessor)
-import toolkit_extension.xarray_regrid.methods.conservative as _xrc
+import xarray_regrid  # noqa: F401  (registers the .regrid accessor)
+import xarray_regrid.methods.conservative as _xrc
 
 
 
