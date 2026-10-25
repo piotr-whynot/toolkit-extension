@@ -7,6 +7,9 @@ import tomllib  # Use 'import tomllib' if using Python 3.11+
 from pathlib import Path
 import os
 
+import faulthandler
+faulthandler.enable()
+
 # -- Project information
 
 project = 'ACACIA_S2S_TOOLKIT'
