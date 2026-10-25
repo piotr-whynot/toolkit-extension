@@ -49,5 +49,4 @@ epub_show_urls = 'footnote'
 
 exclude_patterns = [
     'notebooks/*.ipynb',
-    'api.rst',
 ]
