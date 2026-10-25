@@ -3,6 +3,5 @@ sphinx-rtd-theme==1.3.0rc1
 nbsphinx
 nbconvert
 ipykernel
-myst-nb
 jupyter
-
+myst_parser
