@@ -1,16 +1,16 @@
 # SPDX-FileCopyrightText: 2024 European Centre for Medium-Range Weather Forecasts (ECMWF)
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Bias correction of hindcasts and forecasts in effective-lead-time format:
-
-    obs  : (valid_time, effective_lead_time, latitude, longitude)
-    hcst : (valid_time, effective_lead_time, member, latitude, longitude)
-    fcst : (valid_time, effective_lead_time, member, latitude, longitude)
-
-Internally the data are converted to the corrector format of xsdba_corrector (valid_time
-renamed to 'time', masked cells removed) and converted back afterwards.
-"""
+#"""
+#Bias correction of hindcasts and forecasts in effective-lead-time format:
+#
+#obs  : (valid_time, effective_lead_time, latitude, longitude)
+#hcst : (valid_time, effective_lead_time, member, latitude, longitude)
+#fcst : (valid_time, effective_lead_time, member, latitude, longitude)
+#
+#Internally the data are converted to the corrector format of xsdba_corrector (valid_time
+#renamed to 'time', masked cells removed) and converted back afterwards.
+#"""
 
 import inspect
 import json

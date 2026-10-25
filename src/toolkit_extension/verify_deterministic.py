@@ -1,48 +1,48 @@
-"""
-Verification of an issued deterministic forecast (ensemble mean) against the observations
-that have since become available.
-
-    product = xr.open_dataset("det.nc")              # from make_deterministic_product
-    skill = verify_deterministic(product, obs)
-    skill = verify_deterministic(product, obs, ["acc", "rmse"])
-
-Inputs, alignment rules, area weighting: see verification_common.py.
-Anomalies are relative to the hindcast climatology stored in the product (clim_obs for the
-observations; the product's own fcst_anomaly for the forecast).
-
-Units: obs, error, obs_anomaly, bias, mae and rmse are in the units of the variable;
-obs_percentile, error_pct and bias_pct in %; acc, msss and sign_agreement are dimensionless
-(units '-'). Every output variable carries 'units'.
-
-Maps (valid_time, lead, latitude, longitude)
-    obs             the observations of the forecast period, as verified against
-    obs_percentile  the observation as a percentile (0-100) of the hindcast-period obs
-                    stored in the product, at that grid point and lead time (hindcast values
-                    equal to the obs count half)
-    error           fcst_mean - obs
-    error_pct       100 * (fcst_mean - obs) / clim_obs: the error as a percentage of the
-                    climatology (= forecast minus observed percent anomaly). Relative to the
-                    climatology rather than to the observed value, which can be 0 (e.g. a
-                    dry week); NaN where the climatology is 0 or negative
-    obs_anomaly     obs - clim_obs, to plot next to fcst_anomaly
-
-Scores over the map (valid_time, lead)
-    bias            mean error
-    bias_pct        percent bias: 100 * mean error / mean obs (NaN if mean obs <= 0)
-    mae             mean absolute error
-    rmse            root-mean-square error
-    acc             anomaly correlation: correlation over the map between forecast and
-                    observed anomalies (centred, i.e. spatial means removed)
-    msss            mean-squared skill score of the anomalies against climatology (zero
-                    anomaly): 1 - MSE(fcst anomaly) / mean(obs anomaly^2);
-                    0 = no better than climatology, 1 = perfect
-    sign_agreement  fraction of the area where forecast and observed anomalies have the same
-                    sign (0.5 = chance for a symmetric variable)
-
-Note: forecast and observed anomalies share the error of the climatology estimated from
-the hindcast years, which correlates them slightly; with 20 years an unrelated forecast
-gets ACC of about +0.07 on average rather than 0.
-"""
+#"""
+#Verification of an issued deterministic forecast (ensemble mean) against the observations
+#that have since become available.
+#
+#    product = xr.open_dataset("det.nc")              # from make_deterministic_product
+#    skill = verify_deterministic(product, obs)
+#    skill = verify_deterministic(product, obs, ["acc", "rmse"])
+#
+#Inputs, alignment rules, area weighting: see verification_common.py.
+#Anomalies are relative to the hindcast climatology stored in the product (clim_obs for the
+#observations; the product's own fcst_anomaly for the forecast).
+#
+#Units: obs, error, obs_anomaly, bias, mae and rmse are in the units of the variable;
+#obs_percentile, error_pct and bias_pct in %; acc, msss and sign_agreement are dimensionless
+#(units '-'). Every output variable carries 'units'.
+#
+#Maps (valid_time, lead, latitude, longitude)
+#    obs             the observations of the forecast period, as verified against
+#    obs_percentile  the observation as a percentile (0-100) of the hindcast-period obs
+#                    stored in the product, at that grid point and lead time (hindcast values
+#                    equal to the obs count half)
+#    error           fcst_mean - obs
+#    error_pct       100 * (fcst_mean - obs) / clim_obs: the error as a percentage of the
+#                    climatology (= forecast minus observed percent anomaly). Relative to the
+#                    climatology rather than to the observed value, which can be 0 (e.g. a
+#                    dry week); NaN where the climatology is 0 or negative
+#    obs_anomaly     obs - clim_obs, to plot next to fcst_anomaly
+#
+#Scores over the map (valid_time, lead)
+#    bias            mean error
+#    bias_pct        percent bias: 100 * mean error / mean obs (NaN if mean obs <= 0)
+#    mae             mean absolute error
+#    rmse            root-mean-square error
+#    acc             anomaly correlation: correlation over the map between forecast and
+#                    observed anomalies (centred, i.e. spatial means removed)
+#    msss            mean-squared skill score of the anomalies against climatology (zero
+#                    anomaly): 1 - MSE(fcst anomaly) / mean(obs anomaly^2);
+#                    0 = no better than climatology, 1 = perfect
+#    sign_agreement  fraction of the area where forecast and observed anomalies have the same
+#                    sign (0.5 = chance for a symmetric variable)
+#
+#Note: forecast and observed anomalies share the error of the climatology estimated from
+#the hindcast years, which correlates them slightly; with 20 years an unrelated forecast
+#gets ACC of about +0.07 on average rather than 0.
+#"""
 
 from __future__ import annotations
 
