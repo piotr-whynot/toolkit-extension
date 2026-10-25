@@ -349,35 +349,37 @@ def align_grid(finegrid, coarsegrid, direction="fine_to_coarse", method="conserv
     Parameters
     ----------
     finegrid : DataArray, high resolution, e.g. observations (time, latitude, longitude).
+
     coarsegrid : DataArray, low resolution, e.g. model data
-        (valid_time, effective_lead_time, member, latitude, longitude).
-        Spatial dimensions may be named lat/lon or latitude/longitude.
+    (valid_time, effective_lead_time, member, latitude, longitude).
+
+    Spatial dimensions may be named lat/lon or latitude/longitude.
     direction : "fine_to_coarse" (default) or "coarse_to_fine".
-        "fine_to_coarse": finegrid is regridded to the coarse grid, conservatively
-                          (area-weighted mean of the fine cells in each coarse cell).
-        "coarse_to_fine": coarsegrid is interpolated bilinearly to the fine grid; fine cells
-                          outside the area spanned by the coarse cell centres get the value
-                          of the nearest coarse cell.
+    "fine_to_coarse": finegrid is regridded to the coarse grid, conservatively
+    (area-weighted mean of the fine cells in each coarse cell).
+    "coarse_to_fine": coarsegrid is interpolated bilinearly to the fine grid; fine cells
+    outside the area spanned by the coarse cell centres get the value
+    of the nearest coarse cell.
     method : "conservative" for fine_to_coarse, "bilinear" for coarse_to_fine.
     raise_if_missing, threshold : passed to _check_grid_overlap (grids that do not overlap
-        at all always raise an error).
+    at all always raise an error).
     nan_threshold : fine_to_coarse only, default 0.5. Largest fraction of NaN (by area) in
-        a coarse cell for which a value is still computed from the valid part; above it the
-        coarse cell is NaN. Same meaning as xESMF's na_thres.
+    a coarse cell for which a value is still computed from the valid part; above it the
+    coarse cell is NaN. Same meaning as xESMF's na_thres.
 
     Returns
     -------
     finealigned, coarsealigned : both on the chosen grid, with the dimension names of that
-        grid. Cells without data in either dataset (at any time / lead / member) are NaN in
-        both. Attributes are kept, and the regridding settings are added as attributes
-        (regrid_direction, regrid_method, regrid_nan_threshold), so that they reach the
-        products and can be repeated for new observations (align_obs_to_product).
+    grid. Cells without data in either dataset (at any time / lead / member) are NaN in
+    both. Attributes are kept, and the regridding settings are added as attributes
+    (regrid_direction, regrid_method, regrid_nan_threshold), so that they reach the
+    products and can be repeated for new observations (align_obs_to_product).
 
     Raises
     ------
     ValueError
-        If direction or method is not one of the allowed values, if no lat/lon dimensions
-        are found, or if the grids do not overlap enough (see _check_grid_overlap).
+    If direction or method is not one of the allowed values, if no lat/lon dimensions
+    are found, or if the grids do not overlap enough (see _check_grid_overlap).
     """
     _log(" align_grid ".center(60, "="))
 
@@ -506,18 +508,18 @@ def aggregate(
     Parameters
     ----------
     data : xr.DataArray or xr.Dataset
-        Daily data, e.g. (valid_time, effective_lead_time, [member,] latitude, longitude).
+    Daily data, e.g. (valid_time, effective_lead_time, [member,] latitude, longitude).
     window_size : int
-        Window length in days, between 5 and 50.
+    Window length in days, between 5 and 50.
     method : str, default "mean"
-        Name of a function registered in AGG_FUNCTIONS: "mean", "sum", "max",
-        "count_zero" (number of days equal to 0), "count_above" (number of days above
-        `threshold`, passed as a keyword argument; default 0), "max_dry_spell" (longest
-        run of consecutive days below `threshold` within the window; default 1.0, e.g.
-        1 mm for precipitation; a spell that crosses into the next window is split), or
-        one added with register_agg.
+    Name of a function registered in AGG_FUNCTIONS: "mean", "sum", "max",
+    "count_zero" (number of days equal to 0), "count_above" (number of days above
+    `threshold`, passed as a keyword argument; default 0), "max_dry_spell" (longest
+    run of consecutive days below `threshold` within the window; default 1.0, e.g.
+    1 mm for precipitation; a spell that crosses into the next window is split), or
+    one added with register_agg.
     dim : str, default "effective_lead_time"
-        Dimension being aggregated.
+    Dimension being aggregated.
     **kwargs : passed through to the aggregation function (e.g. threshold=1.0).
 
     Returns
@@ -531,7 +533,7 @@ def aggregate(
     Raises
     ------
     ValueError
-        If method is not registered or window_size is not between 5 and 50.
+    If method is not registered or window_size is not between 5 and 50.
     """
 
     _log(f"Aggregating lead_time to {window_size}-D blocks using ({method})...")
