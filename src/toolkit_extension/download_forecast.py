@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # download sub-seasonal forecast data from S2S prediction project
-from acacia_s2s_toolkit import argument_check, argument_output, ecdsAPI_requests, download_S2Stc_tracks, download_S2SMJO_indices, grid_functions
+from toolkit_extension import argument_check, argument_output, ecdsAPI_requests, download_S2Stc_tracks, download_S2SMJO_indices, grid_functions
 import os
 import sys
 import datetime

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # download sub-seasonal reforecast from S2S Database
-from acacia_s2s_toolkit import argument_check, argument_output, ecdsAPI_requests, download_S2Stc_tracks, grid_functions
+from toolkit_extension import argument_check, argument_output, ecdsAPI_requests, download_S2Stc_tracks, grid_functions
 import os
 import sys
 import datetime
