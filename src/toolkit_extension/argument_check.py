@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Check that requested variables are appropriate and are compatiable with WMO lead centre.
-from acacia_s2s_toolkit.variable_dict import s2s_variables
+from toolkit_extension.variable_dict import s2s_variables
 from difflib import get_close_matches
 from datetime import datetime, timedelta
-from acacia_s2s_toolkit import argument_output
+from toolkit_extension import argument_output
 import numpy as np
 
 def check_requested_variable(variable):

@@ -8,7 +8,7 @@ import pandas as pd
 import ftplib
 import os
 import huracanpy as hpy
-from acacia_s2s_toolkit import argument_output, download_S2Stc_tracks
+from toolkit_extension import argument_output, download_S2Stc_tracks
 from datetime import datetime, timedelta
 from pathlib import Path
 import yaml

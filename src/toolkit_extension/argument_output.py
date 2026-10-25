@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # output suitable ECDS variables in light of requested forecasts.
-from acacia_s2s_toolkit import variable_dict, argument_check
+from toolkit_extension import variable_dict, argument_check
 from datetime import datetime, timedelta
 from importlib import resources
 import requests
@@ -16,7 +16,7 @@ import yaml
 
 def read_lookup_table(fcdate='20250828'):
     # Open public ecbox contain .csv files with lookup tables.
-    url = "https://sites.ecmwf.int/ecbox/acacia_s2s_toolkit/s/api/v2/pub/files/lookup_tables"
+    url = "https://sites.ecmwf.int/ecbox/toolkit_extension/s/api/v2/pub/files/lookup_tables"
     r = requests.get(url)
     lookup_tables_list = r.json()
 

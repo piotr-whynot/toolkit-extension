@@ -8,7 +8,7 @@ import pandas as pd
 import ftplib
 import os
 import huracanpy as hpy
-from acacia_s2s_toolkit import argument_output
+from toolkit_extension import argument_output
 from datetime import datetime, timedelta
 from pathlib import Path
 import yaml
@@ -49,7 +49,7 @@ def empty_member_dataset():
 
 def get_s2sFTP_tokens():
     # open text file contain aux site passwords
-    url = 'https://sites.ecmwf.int/ecbox/acacia_s2s_toolkit/s/api/v2/pub/files/S2Saux_user_pwrd'
+    url = 'https://sites.ecmwf.int/ecbox/toolkit_extension/s/api/v2/pub/files/S2Saux_user_pwrd'
     r = requests.get(url)
     r.raise_for_status()
     creds = r.json()

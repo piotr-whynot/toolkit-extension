@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # script containing all relevant code for producing ecdsAPI requests.
-from acacia_s2s_toolkit import argument_output, merge_lag_ensemble
+from toolkit_extension import argument_output, merge_lag_ensemble
 import numpy as np
 import os
 import eccodes as ec
@@ -12,7 +12,7 @@ import subprocess
 import cdsapi
 import glob
 from pathlib import Path
-import acacia_s2s_toolkit
+import toolkit_extension
 import json
 import pandas as pd
 
@@ -136,10 +136,10 @@ def request_forecast(fcdate,origin,grid,variable,area,data_format,webapi_param,l
             'Conventions': 'CF-1.8',
                     'title': f'{origin} Sub-seasonal Forecast',
                     'institution': 'ECMWF',
-                    'source': 'Downloaded via acacia_s2s_toolkit',
-                    'history': 'Downloaded via acacia_s2s_toolkit',
-                    'toolkit': 'acacia_s2s_toolkit',
-                    'toolkit_version': acacia_s2s_toolkit.__version__,
+                    'source': 'Downloaded via toolkit_extension',
+                    'history': 'Downloaded via toolkit_extension',
+                    'toolkit': 'toolkit_extension',
+                    'toolkit_version': toolkit_extension.__version__,
                     'forecast_initialisation_date': str(fcdate),
                     'origin': origin,
                     'grid': grid,
@@ -288,11 +288,11 @@ def request_hindcast(fcdate,origin,grid,variable,area,data_format,webapi_param,l
         'source': f'{origin} S2S reforecasts downloaded from ECMWF ECDS',
         'history': (
             f'{datetime.utcnow():%Y-%m-%dT%H:%M:%SZ} '
-            'Downloaded and processed using acacia_s2s_toolkit'
+            'Downloaded and processed using toolkit_extension'
         ),
 
         # Record the software name and version used.
-        'toolkit': f'acacia_s2s_toolkit {acacia_s2s_toolkit.__version__}',
+        'toolkit': f'toolkit_extension {toolkit_extension.__version__}',
 
         'variable': variable,
         'grid': grid,
